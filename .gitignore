@@ -1,0 +1,39 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.local.json
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Trained model artifacts (regenerated from seed data)
+ai-service/models/*
+!ai-service/models/.gitkeep
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local throwaway PostgreSQL used by database tests
+backend/.pgtest/
+
+# Generated Prisma client (run `npm --prefix backend run prisma:generate`)
+backend/src/generated/

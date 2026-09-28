@@ -1,0 +1,11 @@
+# BloodLink AI service — Python 3.12+ (developed on 3.14)
+fastapi>=0.118
+uvicorn[standard]>=0.37
+pydantic-settings>=2.11
+pandas>=2.3.3
+numpy>=2.3.3
+scikit-learn>=1.7.2
+
+# Testing
+pytest>=8.4
+httpx>=0.28

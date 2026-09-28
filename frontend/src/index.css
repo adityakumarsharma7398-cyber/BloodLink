@@ -1,0 +1,169 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* =============================================================================
+ * BloodLink design tokens — professional medical software (docs/DECISIONS.md, M).
+ *
+ * ~90–95% white / neutral surfaces. Red carries meaning: brand, primary action,
+ * emergency, critical status. Blue is a rare informational accent. No gradients,
+ * glass, glow or dark themes.
+ * ========================================================================== */
+:root {
+  /* Brand red */
+  --red-700: #a50d24;
+  --red-600: #c8102e; /* BloodLink red — brand, primary action, emergency */
+  --red-100: #fde8eb;
+  --red-50: #fff5f6;
+
+  /* Neutrals */
+  --white: #ffffff;
+  --grey-25: #fafafb;
+  --grey-50: #f6f7f9; /* section backgrounds */
+  --grey-100: #eef0f3;
+  --grey-200: #e3e6ea; /* borders */
+  --grey-300: #cfd4db;
+  --grey-500: #6b7280; /* secondary text */
+  --grey-600: #4b5563;
+  --grey-900: #111827; /* primary text */
+
+  /* Status (used only in small chips / icons, always with a text label) */
+  --status-critical: #b3122b;
+  --status-critical-bg: #fde8eb;
+  --status-warning: #9a5b00;
+  --status-warning-bg: #fdf3e1;
+  --status-ok: #1d7a46;
+  --status-ok-bg: #e8f5ee;
+  --status-neutral: #4b5563;
+  --status-neutral-bg: #eef0f3;
+  --info: #1f5fbf; /* rare informational accent */
+  --info-bg: #eaf1fc;
+
+  /* shadcn/ui semantic mapping */
+  --radius: 0.5rem; /* 8px cards; controls use 6px */
+  --background: var(--white);
+  --foreground: var(--grey-900);
+  --card: var(--white);
+  --card-foreground: var(--grey-900);
+  --popover: var(--white);
+  --popover-foreground: var(--grey-900);
+  --primary: var(--red-600);
+  --primary-foreground: var(--white);
+  --secondary: var(--grey-50);
+  --secondary-foreground: var(--grey-900);
+  --muted: var(--grey-50);
+  --muted-foreground: var(--grey-500);
+  --accent: var(--grey-50);
+  --accent-foreground: var(--grey-900);
+  --destructive: var(--red-600);
+  --border: var(--grey-200);
+  --input: var(--grey-300);
+  --ring: var(--red-600);
+}
+
+@theme inline {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: var(--radius);
+  --radius-xl: 10px;
+
+  --color-red-700: var(--red-700);
+  --color-red-600: var(--red-600);
+  --color-red-100: var(--red-100);
+  --color-red-50: var(--red-50);
+  --color-brand: var(--red-600);
+
+  --color-grey-25: var(--grey-25);
+  --color-grey-50: var(--grey-50);
+  --color-grey-100: var(--grey-100);
+  --color-grey-200: var(--grey-200);
+  --color-grey-300: var(--grey-300);
+  --color-grey-500: var(--grey-500);
+  --color-grey-600: var(--grey-600);
+  --color-grey-900: var(--grey-900);
+
+  --color-status-critical: var(--status-critical);
+  --color-status-critical-bg: var(--status-critical-bg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-bg: var(--status-ok-bg);
+  --color-status-neutral: var(--status-neutral);
+  --color-status-neutral-bg: var(--status-neutral-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --shadow-card: 0 1px 2px rgb(17 24 39 / 0.04);
+  --shadow-raised: 0 2px 8px rgb(17 24 39 / 0.06);
+}
+
+/* Section eyebrow / small label */
+@utility text-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--grey-500);
+}
+
+/* Aligned figures for tables and metrics */
+@utility text-data {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground min-h-svh font-sans text-[15px] leading-relaxed antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-grey-900 font-semibold tracking-tight text-balance;
+  }
+  ::selection {
+    background: var(--red-100);
+  }
+  :focus-visible {
+    outline: 2px solid var(--red-600);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

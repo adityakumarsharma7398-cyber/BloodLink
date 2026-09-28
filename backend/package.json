@@ -1,0 +1,52 @@
+{
+  "name": "@bloodlink/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BloodLink AI — main application backend (Express + TypeScript)",
+  "type": "module",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:pull": "prisma db pull",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "test:all": "npm run test && npm run test:api && npm run test:db",
+    "demo:seed": "tsx scripts/seed-demo.ts seed",
+    "demo:reset": "tsx scripts/seed-demo.ts reset"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@supabase/supabase-js": "^2.109.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.43",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.18.1",
+    "embedded-postgres": "^17.10.0-beta.17",
+    "pg": "^8.23.0",
+    "prisma": "^7.10.0",
+    "supertest": "^7.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

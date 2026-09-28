@@ -1,0 +1,1141 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["auth", "public"]
+}
+
+model auth_users {
+  id    String        @id @db.Uuid
+  email String?
+  users public_users?
+
+  @@map("users")
+  @@schema("auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model alerts {
+  id                                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                     String           @db.Uuid
+  facility_id                         String?          @db.Uuid
+  alert_type                          alert_type
+  severity                            risk_level
+  title                               String
+  message                             String
+  source_prediction_id                String?          @db.Uuid
+  recommendation_id                   String?          @db.Uuid
+  request_id                          String?          @db.Uuid
+  transfer_id                         String?          @db.Uuid
+  dedupe_key                          String?
+  status                              alert_status     @default(UNREAD)
+  acknowledged_by                     String?          @db.Uuid
+  acknowledged_at                     DateTime?        @db.Timestamptz(6)
+  resolved_by                         String?          @db.Uuid
+  resolved_at                         DateTime?        @db.Timestamptz(6)
+  created_at                          DateTime         @default(now()) @db.Timestamptz(6)
+  users_alerts_acknowledged_byTousers public_users?    @relation("alerts_acknowledged_byTousers", fields: [acknowledged_by], references: [id], onUpdate: NoAction)
+  facilities                          facilities?      @relation(fields: [facility_id, organization_id], references: [id, organization_id], onUpdate: NoAction, map: "alerts_facility_in_org")
+  organizations                       organizations    @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+  recommendations                     recommendations? @relation(fields: [recommendation_id], references: [id], onUpdate: NoAction)
+  requests                            requests?        @relation(fields: [request_id], references: [id], onUpdate: NoAction)
+  users_alerts_resolved_byTousers     public_users?    @relation("alerts_resolved_byTousers", fields: [resolved_by], references: [id], onUpdate: NoAction)
+  predictions                         predictions?     @relation(fields: [source_prediction_id], references: [id], onUpdate: NoAction)
+  transfers                           transfers?       @relation(fields: [transfer_id], references: [id], onUpdate: NoAction)
+
+  @@unique([organization_id, dedupe_key], map: "alerts_one_open_per_subject", where: raw("(status <> 'RESOLVED'::alert_status)"))
+  @@index([organization_id, status, created_at(sort: Desc)], map: "alerts_org_status_created_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_logs {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  occurred_at     DateTime @default(now()) @db.Timestamptz(6)
+  user_id         String?  @db.Uuid
+  organization_id String?  @db.Uuid
+  facility_id     String?  @db.Uuid
+  action          String
+  entity_type     String
+  entity_id       String?  @db.Uuid
+  old_value       Json?
+  new_value       Json?
+  ip_address      String?  @db.Inet
+  correlation_id  String?  @db.Uuid
+
+  @@index([entity_type, entity_id], map: "audit_logs_entity_idx")
+  @@index([organization_id, occurred_at(sort: Desc)], map: "audit_logs_org_time_idx")
+  @@index([user_id, occurred_at(sort: Desc)], map: "audit_logs_user_time_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model blood_groups {
+  id                                                                             Int                   @id @default(autoincrement()) @db.SmallInt
+  code                                                                           String                @unique
+  display_name                                                                   String
+  abo                                                                            String?
+  rhd                                                                            String?
+  is_known                                                                       Boolean
+  sort_order                                                                     Int                   @db.SmallInt
+  compatibility_rules_compatibility_rules_donor_blood_group_idToblood_groups     compatibility_rules[] @relation("compatibility_rules_donor_blood_group_idToblood_groups")
+  compatibility_rules_compatibility_rules_recipient_blood_group_idToblood_groups compatibility_rules[] @relation("compatibility_rules_recipient_blood_group_idToblood_groups")
+  donor_activations                                                              donor_activations[]
+  donors                                                                         donors[]
+  inventory_units                                                                inventory_units[]
+  planning_parameters                                                            planning_parameters[]
+  predictions                                                                    predictions[]
+  request_items                                                                  request_items[]
+  transactions                                                                   transactions[]
+  transfers                                                                      transfers[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model compatibility_rules {
+  id                                                                      Int                    @id @default(autoincrement()) @db.SmallInt
+  donor_blood_group_id                                                    Int                    @db.SmallInt
+  recipient_blood_group_id                                                Int                    @db.SmallInt
+  component_id                                                            Int                    @db.SmallInt
+  compatible                                                              Boolean
+  priority                                                                Int                    @db.SmallInt
+  validation_status                                                       rule_validation_status @default(DEMO_ONLY)
+  source_reference                                                        String?
+  source_url                                                              String?
+  validated_by                                                            String?                @db.Uuid
+  validated_at                                                            DateTime?              @db.Timestamptz(6)
+  validation_note                                                         String?
+  notes                                                                   String?
+  created_at                                                              DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                                                              DateTime               @default(now()) @db.Timestamptz(6)
+  components                                                              components             @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  blood_groups_compatibility_rules_donor_blood_group_idToblood_groups     blood_groups           @relation("compatibility_rules_donor_blood_group_idToblood_groups", fields: [donor_blood_group_id], references: [id], onUpdate: NoAction)
+  blood_groups_compatibility_rules_recipient_blood_group_idToblood_groups blood_groups           @relation("compatibility_rules_recipient_blood_group_idToblood_groups", fields: [recipient_blood_group_id], references: [id], onUpdate: NoAction)
+  users                                                                   public_users?          @relation(fields: [validated_by], references: [id], onUpdate: NoAction)
+
+  @@unique([donor_blood_group_id, recipient_blood_group_id, component_id], map: "compatibility_rules_active_unique", where: raw("(validation_status <> 'RETIRED'::rule_validation_status)"))
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model components {
+  id                       Int                    @id @default(autoincrement()) @db.SmallInt
+  code                     String                 @unique
+  name                     String
+  category                 component_category
+  storage_temp_min         Decimal?               @db.Decimal(4, 1)
+  storage_temp_max         Decimal?               @db.Decimal(4, 1)
+  typical_storage_days     Int?                   @db.SmallInt
+  values_validation_status rule_validation_status @default(DEMO_ONLY)
+  values_source_reference  String?
+  values_validated_by      String?                @db.Uuid
+  values_validated_at      DateTime?              @db.Timestamptz(6)
+  active                   Boolean                @default(true)
+  compatibility_rules      compatibility_rules[]
+  users                    public_users?          @relation(fields: [values_validated_by], references: [id], onUpdate: NoAction)
+  donation_components      donation_components[]
+  donor_activations        donor_activations[]
+  inventory_units          inventory_units[]
+  planning_parameters      planning_parameters[]
+  predictions              predictions[]
+  request_items            request_items[]
+  transactions             transactions[]
+  transfers                transfers[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model donation_components {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_id       String            @db.Uuid
+  component_id      Int               @db.SmallInt
+  inventory_unit_id String?           @unique @db.Uuid
+  processing_date   DateTime?         @db.Timestamptz(6)
+  processing_status processing_status @default(PENDING)
+  components        components        @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  donations         donations         @relation(fields: [donation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inventory_units   inventory_units?  @relation(fields: [inventory_unit_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([donation_id, component_id], map: "donation_components_unique")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model donations {
+  id                          String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_id                    String                       @db.Uuid
+  facility_id                 String                       @db.Uuid
+  donation_type               donation_type                @default(WHOLE_BLOOD)
+  donation_date               DateTime                     @db.Timestamptz(6)
+  volume_ml                   Int?
+  screening_status            screening_status             @default(PENDING)
+  eligibility_status          eligibility_status           @default(PENDING)
+  deferral_reason             String?
+  activation_recipient_id     String?                      @db.Uuid
+  recorded_by                 String?                      @db.Uuid
+  created_at                  DateTime                     @default(now()) @db.Timestamptz(6)
+  donation_components         donation_components[]
+  donor_activation_recipients donor_activation_recipients? @relation(fields: [activation_recipient_id], references: [id], onUpdate: NoAction, map: "donations_activation_recipient_fkey")
+  donors                      donors                       @relation(fields: [donor_id], references: [id], onUpdate: NoAction)
+  facilities                  facilities                   @relation(fields: [facility_id], references: [id], onUpdate: NoAction)
+  users                       public_users?                @relation(fields: [recorded_by], references: [id], onUpdate: NoAction)
+  inventory_units             inventory_units[]
+
+  @@index([donor_id, donation_date(sort: Desc)], map: "donations_donor_date_idx")
+  @@index([facility_id, donation_date], map: "donations_facility_date_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model donor_activation_recipients {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activation_id       String              @db.Uuid
+  donor_id            String              @db.Uuid
+  distance_km         Decimal             @db.Decimal(5, 1)
+  notification_status notification_status @default(PENDING)
+  notified_at         DateTime?           @db.Timestamptz(6)
+  response            donor_response      @default(NO_RESPONSE)
+  responded_at        DateTime?           @db.Timestamptz(6)
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  donations           donations[]
+  donor_activations   donor_activations   @relation(fields: [activation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  donors              donors              @relation(fields: [donor_id], references: [id], onUpdate: NoAction)
+
+  @@unique([activation_id, donor_id], map: "donor_activation_recipients_unique")
+  @@index([donor_id, created_at(sort: Desc)], map: "donor_activation_recipients_donor_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model donor_activations {
+  id                          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id             String                        @db.Uuid
+  facility_id                 String                        @db.Uuid
+  prediction_id               String?                       @db.Uuid
+  recommendation_id           String?                       @db.Uuid
+  blood_group_id              Int                           @db.SmallInt
+  component_id                Int                           @db.SmallInt
+  units_needed                Int                           @db.SmallInt
+  target_donor_count          Int                           @db.SmallInt
+  urgency                     urgency_level                 @default(HIGH)
+  radius_km                   Decimal                       @db.Decimal(5, 1)
+  donor_message               String
+  status                      donor_activation_status       @default(ACTIVE)
+  activated_by                String                        @db.Uuid
+  expires_at                  DateTime                      @db.Timestamptz(6)
+  created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  donor_activation_recipients donor_activation_recipients[]
+  users                       public_users                  @relation(fields: [activated_by], references: [id], onUpdate: NoAction)
+  blood_groups                blood_groups                  @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components                  components                    @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  facilities                  facilities                    @relation(fields: [facility_id, organization_id], references: [id, organization_id], onUpdate: NoAction, map: "donor_activations_facility_in_org")
+  predictions                 predictions?                  @relation(fields: [prediction_id], references: [id], onUpdate: NoAction)
+  recommendations             recommendations?              @relation(fields: [recommendation_id], references: [id], onUpdate: NoAction)
+
+  @@index([blood_group_id, status], map: "donor_activations_group_status_idx")
+  @@index([organization_id, status], map: "donor_activations_org_status_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model donors {
+  id                          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                     String?                       @unique @db.Uuid
+  full_name                   String
+  blood_group_id              Int                           @db.SmallInt
+  blood_group_verified        Boolean                       @default(false)
+  date_of_birth               DateTime?                     @db.Date
+  phone                       String?
+  email                       String?
+  city                        String?
+  latitude                    Float?
+  longitude                   Float?
+  availability_status         donor_availability            @default(AVAILABLE)
+  last_donation_date          DateTime?                     @db.Date
+  total_donations             Int                           @default(0)
+  status                      donor_status                  @default(ACTIVE)
+  consent_to_contact          Boolean                       @default(false)
+  preferred_facility_id       String?                       @db.Uuid
+  created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  donations                   donations[]
+  donor_activation_recipients donor_activation_recipients[]
+  blood_groups                blood_groups                  @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  facilities                  facilities?                   @relation(fields: [preferred_facility_id], references: [id], onUpdate: NoAction)
+  users                       public_users?                 @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([blood_group_id, status, availability_status], map: "donors_targeting_idx", where: raw("consent_to_contact"))
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model facilities {
+  id                                                            String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                               String                    @db.Uuid
+  name                                                          String
+  facility_type                                                 facility_type
+  holds_inventory                                               Boolean                   @default(false)
+  accepts_temporary_holds                                       Boolean                   @default(false)
+  address                                                       String
+  city                                                          String
+  district                                                      String?
+  state                                                         String
+  pincode                                                       String?
+  latitude                                                      Float
+  longitude                                                     Float
+  phone                                                         String?
+  operating_status                                              facility_operating_status @default(OPERATIONAL)
+  created_at                                                    DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                    DateTime                  @default(now()) @db.Timestamptz(6)
+  alerts                                                        alerts[]
+  donations                                                     donations[]
+  donor_activations                                             donor_activations[]
+  donors                                                        donors[]
+  organizations                                                 organizations             @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+  inventory_units                                               inventory_units[]
+  planning_parameters                                           planning_parameters[]
+  predictions                                                   predictions[]
+  recommendations                                               recommendations[]
+  request_allocations                                           request_allocations[]
+  requests_requests_patient_facility_idTofacilities             requests[]                @relation("requests_patient_facility_idTofacilities")
+  requests_requests_requester_facility_idTofacilities           requests[]                @relation("requests_requester_facility_idTofacilities")
+  requests_requests_verifying_facility_idTofacilities           requests[]                @relation("requests_verifying_facility_idTofacilities")
+  storage_locations                                             storage_locations[]
+  transactions_transactions_counterpart_facility_idTofacilities transactions[]            @relation("transactions_counterpart_facility_idTofacilities")
+  transactions_transactions_facility_idTofacilities             transactions[]            @relation("transactions_facility_idTofacilities")
+  transfers_transfers_destination_facility_idTofacilities       transfers[]               @relation("transfers_destination_facility_idTofacilities")
+  transfers_transfers_source_facility_idTofacilities            transfers[]               @relation("transfers_source_facility_idTofacilities")
+  user_roles                                                    user_roles[]
+  users                                                         public_users[]
+
+  @@unique([id, organization_id], map: "facilities_id_org_unique")
+  @@unique([organization_id, name], map: "facilities_org_name_unique")
+  @@index([organization_id], map: "facilities_organization_idx")
+  @@index([facility_type, operating_status], map: "facilities_type_status_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model inventory_units {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unit_code               String                @unique
+  facility_id             String                @db.Uuid
+  donation_id             String?               @db.Uuid
+  component_id            Int                   @db.SmallInt
+  blood_group_id          Int                   @db.SmallInt
+  collection_date         DateTime              @db.Timestamptz(6)
+  processing_date         DateTime?             @db.Timestamptz(6)
+  expiry_date             DateTime              @db.Timestamptz(6)
+  volume_ml               Int?
+  status                  inventory_unit_status @default(QUARANTINED)
+  status_changed_at       DateTime              @default(now()) @db.Timestamptz(6)
+  storage_location_id     String?               @db.Uuid
+  reserved_for_request_id String?               @db.Uuid
+  received_at             DateTime              @default(now()) @db.Timestamptz(6)
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime              @default(now()) @db.Timestamptz(6)
+  donation_components     donation_components?
+  blood_groups            blood_groups          @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components              components            @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  donations               donations?            @relation(fields: [donation_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  facilities              facilities            @relation(fields: [facility_id], references: [id], onUpdate: NoAction)
+  requests                requests?             @relation(fields: [reserved_for_request_id], references: [id], onUpdate: NoAction, map: "inventory_units_reserved_for_request_fkey")
+  storage_locations       storage_locations?    @relation(fields: [storage_location_id, facility_id], references: [id, facility_id], onUpdate: NoAction, map: "inventory_units_storage_in_facility")
+  request_allocations     request_allocations?
+  transactions            transactions[]
+  transfer_items          transfer_items[]
+
+  @@index([facility_id, blood_group_id, component_id, expiry_date], map: "inventory_units_available_fefo_idx", where: raw("(status = 'AVAILABLE'::inventory_unit_status)"))
+  @@index([donation_id], map: "inventory_units_donation_idx")
+  @@index([expiry_date], map: "inventory_units_expiry_job_idx", where: raw("(status = ANY (ARRAY['AVAILABLE'::inventory_unit_status, 'RESERVED'::inventory_unit_status, 'QUARANTINED'::inventory_unit_status, 'RECEIVED'::inventory_unit_status]))"))
+  @@index([facility_id, status], map: "inventory_units_facility_status_idx")
+  @@index([reserved_for_request_id], map: "inventory_units_reserved_for_request_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model organizations {
+  id                          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                        String
+  type                        organization_type
+  registration_number         String?               @unique(map: "organizations_registration_number_unique", where: raw("(registration_number IS NOT NULL)"))
+  licence_number              String?
+  phone                       String?
+  email                       String?
+  website                     String?
+  status                      organization_status   @default(PENDING)
+  shares_network_availability Boolean               @default(false)
+  verified_at                 DateTime?             @db.Timestamptz(6)
+  created_at                  DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime              @default(now()) @db.Timestamptz(6)
+  alerts                      alerts[]
+  facilities                  facilities[]
+  planning_parameters         planning_parameters[]
+  recommendations             recommendations[]
+  user_roles                  user_roles[]
+  users                       public_users[]
+
+  @@index([type, status])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model planning_parameters {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key             String
+  organization_id String?        @db.Uuid
+  facility_id     String?        @db.Uuid
+  blood_group_id  Int?           @db.SmallInt
+  component_id    Int?           @db.SmallInt
+  value           Json
+  description     String
+  updated_by      String?        @db.Uuid
+  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
+  blood_groups    blood_groups?  @relation(fields: [blood_group_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  components      components?    @relation(fields: [component_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  facilities      facilities?    @relation(fields: [facility_id, organization_id], references: [id, organization_id], onDelete: Restrict, onUpdate: NoAction, map: "planning_parameters_facility_in_org")
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  users           public_users?  @relation(fields: [updated_by], references: [id], onUpdate: NoAction)
+
+  @@unique([key, organization_id, facility_id, blood_group_id, component_id], map: "planning_parameters_scope_unique")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model predictions {
+  id                      String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_id                  String              @db.Uuid
+  organization_id         String              @db.Uuid
+  facility_id             String              @db.Uuid
+  blood_group_id          Int                 @db.SmallInt
+  component_id            Int                 @db.SmallInt
+  prediction_type         prediction_type
+  horizon_days            Int                 @db.SmallInt
+  period_start            DateTime            @db.Date
+  period_end              DateTime            @db.Date
+  predicted_daily_demand  Decimal?            @db.Decimal(8, 3)
+  predicted_quantity      Decimal?            @db.Decimal(10, 3)
+  usable_units            Int?
+  reserved_units          Int?
+  pending_request_units   Int?
+  incoming_units          Int?
+  expiring_units          Int?
+  at_risk_units           Int?
+  days_of_cover           Decimal?            @db.Decimal(6, 2)
+  predicted_shortage_date DateTime?           @db.Date
+  shortage_risk           risk_level?
+  confidence_score        Decimal?            @db.Decimal(4, 3)
+  confidence_method       String?
+  explanation             Json                @default("{}")
+  model_name              String
+  model_version           String
+  generated_at            DateTime            @default(now()) @db.Timestamptz(6)
+  superseded_at           DateTime?           @db.Timestamptz(6)
+  alerts                  alerts[]
+  donor_activations       donor_activations[]
+  blood_groups            blood_groups        @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components              components          @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  facilities              facilities          @relation(fields: [facility_id, organization_id], references: [id, organization_id], onUpdate: NoAction, map: "predictions_facility_in_org")
+  recommendations         recommendations[]
+
+  @@unique([facility_id, blood_group_id, component_id, prediction_type, horizon_days], map: "predictions_one_current_per_series", where: raw("(superseded_at IS NULL)"))
+  @@index([organization_id, generated_at(sort: Desc)], map: "predictions_org_generated_idx")
+  @@index([run_id], map: "predictions_run_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model recommendations {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recommendation_type   recommendation_type
+  organization_id       String                @db.Uuid
+  facility_id           String?               @db.Uuid
+  related_prediction_id String?               @db.Uuid
+  related_request_id    String?               @db.Uuid
+  status                recommendation_status @default(PENDING)
+  priority              risk_level
+  payload               Json
+  modified_payload      Json?
+  what_explanation      String
+  why_explanation       String
+  data_explanation      Json
+  action_explanation    String
+  source                recommendation_source @default(AI_SERVICE)
+  model_version         String?
+  dedupe_key            String
+  valid_until           DateTime              @db.Timestamptz(6)
+  decided_by            String?               @db.Uuid
+  decided_at            DateTime?             @db.Timestamptz(6)
+  decision_note         String?
+  executed_at           DateTime?             @db.Timestamptz(6)
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime              @default(now()) @db.Timestamptz(6)
+  alerts                alerts[]
+  donor_activations     donor_activations[]
+  users                 public_users?         @relation(fields: [decided_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  facilities            facilities?           @relation(fields: [facility_id, organization_id], references: [id, organization_id], onUpdate: NoAction, map: "recommendations_facility_in_org")
+  organizations         organizations         @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+  predictions           predictions?          @relation(fields: [related_prediction_id], references: [id], onUpdate: NoAction)
+  requests              requests?             @relation(fields: [related_request_id], references: [id], onUpdate: NoAction)
+  request_allocations   request_allocations[]
+  transfers             transfers[]
+
+  @@unique([organization_id, dedupe_key], map: "recommendations_one_pending_per_subject", where: raw("(status = 'PENDING'::recommendation_status)"))
+  @@index([organization_id, status, priority], map: "recommendations_org_status_priority_idx")
+  @@index([related_prediction_id], map: "recommendations_prediction_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model request_allocations {
+  id                                            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  request_item_id                               String            @db.Uuid
+  inventory_unit_id                             String            @unique(map: "request_allocations_one_active_per_unit", where: raw("(status = ANY (ARRAY['RESERVED'::allocation_status, 'CONFIRMED'::allocation_status, 'DISPATCHED'::allocation_status]))")) @db.Uuid
+  source_facility_id                            String            @db.Uuid
+  recommendation_id                             String?           @db.Uuid
+  status                                        allocation_status @default(RESERVED)
+  allocated_at                                  DateTime          @default(now()) @db.Timestamptz(6)
+  allocated_by                                  String            @db.Uuid
+  hold_expires_at                               DateTime?         @db.Timestamptz(6)
+  confirmed_by                                  String?           @db.Uuid
+  confirmed_at                                  DateTime?         @db.Timestamptz(6)
+  dispatched_at                                 DateTime?         @db.Timestamptz(6)
+  issued_at                                     DateTime?         @db.Timestamptz(6)
+  cancelled_at                                  DateTime?         @db.Timestamptz(6)
+  cancel_reason                                 String?
+  users_request_allocations_allocated_byTousers public_users      @relation("request_allocations_allocated_byTousers", fields: [allocated_by], references: [id], onUpdate: NoAction)
+  users_request_allocations_confirmed_byTousers public_users?     @relation("request_allocations_confirmed_byTousers", fields: [confirmed_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  inventory_units                               inventory_units   @relation(fields: [inventory_unit_id], references: [id], onUpdate: NoAction)
+  recommendations                               recommendations?  @relation(fields: [recommendation_id], references: [id], onUpdate: NoAction, map: "request_allocations_recommendation_fkey")
+  request_items                                 request_items     @relation(fields: [request_item_id], references: [id], onUpdate: NoAction)
+  facilities                                    facilities        @relation(fields: [source_facility_id], references: [id], onUpdate: NoAction)
+  transactions                                  transactions[]
+
+  @@index([hold_expires_at], map: "request_allocations_hold_expiry_idx", where: raw("(status = 'RESERVED'::allocation_status)"))
+  @@index([request_item_id], map: "request_allocations_item_idx")
+  @@index([source_facility_id, status], map: "request_allocations_source_status_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model request_items {
+  id                           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  request_id                   String                @db.Uuid
+  blood_group_id               Int                   @db.SmallInt
+  component_id                 Int                   @db.SmallInt
+  quantity_requested           Int                   @db.SmallInt
+  quantity_fulfilled           Int                   @default(0) @db.SmallInt
+  urgency                      urgency_level?
+  required_by                  DateTime?             @db.Timestamptz(6)
+  allow_compatible_substitutes Boolean               @default(true)
+  request_allocations          request_allocations[]
+  blood_groups                 blood_groups          @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components                   components            @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  requests                     requests              @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([request_id, blood_group_id, component_id], map: "request_items_unique")
+  @@index([blood_group_id, component_id], map: "request_items_product_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model requests {
+  id                                                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  request_number                                        String               @unique @default(dbgenerated("((('REQ-'::text || to_char((now() AT TIME ZONE 'Asia/Kolkata'::text), 'YYYY'::text)) || '-'::text) || lpad((nextval('request_number_seq'::regclass))::text, 6, '0'::text))"))
+  requester_user_id                                     String               @db.Uuid
+  requester_facility_id                                 String?              @db.Uuid
+  patient_facility_id                                   String               @db.Uuid
+  verifying_facility_id                                 String               @db.Uuid
+  request_type                                          request_type
+  urgency                                               urgency_level        @default(NORMAL)
+  required_by                                           DateTime             @db.Timestamptz(6)
+  patient_reference                                     String?
+  contact_phone                                         String?
+  verification_status                                   verification_status  @default(PENDING_VERIFICATION)
+  verification_method                                   verification_method?
+  verified_by                                           String?              @db.Uuid
+  verified_at                                           DateTime?            @db.Timestamptz(6)
+  verification_note                                     String?
+  status                                                request_status       @default(OPEN)
+  notes                                                 String?
+  cancelled_at                                          DateTime?            @db.Timestamptz(6)
+  fulfilled_at                                          DateTime?            @db.Timestamptz(6)
+  created_at                                            DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime             @default(now()) @db.Timestamptz(6)
+  alerts                                                alerts[]
+  inventory_units                                       inventory_units[]
+  recommendations                                       recommendations[]
+  request_items                                         request_items[]
+  facilities_requests_patient_facility_idTofacilities   facilities           @relation("requests_patient_facility_idTofacilities", fields: [patient_facility_id], references: [id], onUpdate: NoAction)
+  facilities_requests_requester_facility_idTofacilities facilities?          @relation("requests_requester_facility_idTofacilities", fields: [requester_facility_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  users_requests_requester_user_idTousers               public_users         @relation("requests_requester_user_idTousers", fields: [requester_user_id], references: [id], onUpdate: NoAction)
+  users_requests_verified_byTousers                     public_users?        @relation("requests_verified_byTousers", fields: [verified_by], references: [id], onUpdate: NoAction)
+  facilities_requests_verifying_facility_idTofacilities facilities           @relation("requests_verifying_facility_idTofacilities", fields: [verifying_facility_id], references: [id], onUpdate: NoAction)
+
+  @@index([status, required_by], map: "requests_open_deadline_idx", where: raw("(status = ANY (ARRAY['OPEN'::request_status, 'ALLOCATED'::request_status, 'PARTIALLY_FULFILLED'::request_status]))"))
+  @@index([patient_facility_id, status], map: "requests_patient_status_idx")
+  @@index([requester_user_id, created_at(sort: Desc)], map: "requests_requester_idx")
+  @@index([verifying_facility_id, verification_status], map: "requests_verifying_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles {
+  id          Int          @id @default(autoincrement()) @db.SmallInt
+  code        app_role     @unique
+  name        String
+  description String?
+  scope       role_scope
+  user_roles  user_roles[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model storage_locations {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facility_id     String                  @db.Uuid
+  name            String
+  type            storage_location_type
+  temperature_min Decimal?                @db.Decimal(4, 1)
+  temperature_max Decimal?                @db.Decimal(4, 1)
+  capacity        Int?
+  status          storage_location_status @default(ACTIVE)
+  created_at      DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime                @default(now()) @db.Timestamptz(6)
+  inventory_units inventory_units[]
+  facilities      facilities              @relation(fields: [facility_id], references: [id], onUpdate: NoAction)
+
+  @@unique([facility_id, name], map: "storage_locations_facility_name_unique")
+  @@unique([id, facility_id], map: "storage_locations_id_facility_unique")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transactions {
+  id                                                          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_type                                            transaction_type
+  occurred_at                                                 DateTime               @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  facility_id                                                 String                 @db.Uuid
+  counterpart_facility_id                                     String?                @db.Uuid
+  inventory_unit_id                                           String                 @db.Uuid
+  blood_group_id                                              Int                    @db.SmallInt
+  component_id                                                Int                    @db.SmallInt
+  from_status                                                 inventory_unit_status?
+  to_status                                                   inventory_unit_status
+  request_allocation_id                                       String?                @db.Uuid
+  transfer_id                                                 String?                @db.Uuid
+  recorded_by                                                 String?                @db.Uuid
+  note                                                        String?
+  blood_groups                                                blood_groups           @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components                                                  components             @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  facilities_transactions_counterpart_facility_idTofacilities facilities?            @relation("transactions_counterpart_facility_idTofacilities", fields: [counterpart_facility_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  facilities_transactions_facility_idTofacilities             facilities             @relation("transactions_facility_idTofacilities", fields: [facility_id], references: [id], onUpdate: NoAction)
+  inventory_units                                             inventory_units        @relation(fields: [inventory_unit_id], references: [id], onUpdate: NoAction)
+  users                                                       public_users?          @relation(fields: [recorded_by], references: [id], onUpdate: NoAction)
+  request_allocations                                         request_allocations?   @relation(fields: [request_allocation_id], references: [id], onUpdate: NoAction, map: "transactions_request_allocation_fkey")
+  transfers                                                   transfers?             @relation(fields: [transfer_id], references: [id], onUpdate: NoAction, map: "transactions_transfer_fkey")
+
+  @@index([facility_id, blood_group_id, component_id, occurred_at], map: "transactions_consumption_idx", where: raw("(transaction_type = 'INVENTORY_ISSUED'::transaction_type)"))
+  @@index([facility_id, transaction_type, occurred_at], map: "transactions_facility_type_time_idx")
+  @@index([inventory_unit_id, occurred_at], map: "transactions_unit_time_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transfer_items {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transfer_id       String          @db.Uuid
+  inventory_unit_id String          @db.Uuid
+  accepted          Boolean?
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  inventory_units   inventory_units @relation(fields: [inventory_unit_id], references: [id], onUpdate: NoAction)
+  transfers         transfers       @relation(fields: [transfer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([transfer_id, inventory_unit_id], map: "transfer_items_unique")
+  @@index([inventory_unit_id], map: "transfer_items_unit_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transfers {
+  id                                                       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transfer_number                                          String           @unique @default(dbgenerated("((('TRF-'::text || to_char((now() AT TIME ZONE 'Asia/Kolkata'::text), 'YYYY'::text)) || '-'::text) || lpad((nextval('transfer_number_seq'::regclass))::text, 6, '0'::text))"))
+  source_facility_id                                       String           @db.Uuid
+  destination_facility_id                                  String           @db.Uuid
+  blood_group_id                                           Int              @db.SmallInt
+  component_id                                             Int              @db.SmallInt
+  requested_quantity                                       Int              @db.SmallInt
+  approved_quantity                                        Int?             @db.SmallInt
+  recommendation_id                                        String?          @db.Uuid
+  status                                                   transfer_status  @default(PROPOSED)
+  reason                                                   String?
+  initiated_by                                             String           @db.Uuid
+  approved_by                                              String?          @db.Uuid
+  rejected_by                                              String?          @db.Uuid
+  rejection_reason                                         String?
+  dispatched_by                                            String?          @db.Uuid
+  received_by                                              String?          @db.Uuid
+  requested_at                                             DateTime         @default(now()) @db.Timestamptz(6)
+  approved_at                                              DateTime?        @db.Timestamptz(6)
+  dispatched_at                                            DateTime?        @db.Timestamptz(6)
+  received_at                                              DateTime?        @db.Timestamptz(6)
+  cancelled_at                                             DateTime?        @db.Timestamptz(6)
+  estimated_transit_minutes                                Int?
+  updated_at                                               DateTime         @default(now()) @db.Timestamptz(6)
+  alerts                                                   alerts[]
+  transactions                                             transactions[]
+  transfer_items                                           transfer_items[]
+  users_transfers_approved_byTousers                       public_users?    @relation("transfers_approved_byTousers", fields: [approved_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  blood_groups                                             blood_groups     @relation(fields: [blood_group_id], references: [id], onUpdate: NoAction)
+  components                                               components       @relation(fields: [component_id], references: [id], onUpdate: NoAction)
+  facilities_transfers_destination_facility_idTofacilities facilities       @relation("transfers_destination_facility_idTofacilities", fields: [destination_facility_id], references: [id], onUpdate: NoAction)
+  users_transfers_dispatched_byTousers                     public_users?    @relation("transfers_dispatched_byTousers", fields: [dispatched_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  users_transfers_initiated_byTousers                      public_users     @relation("transfers_initiated_byTousers", fields: [initiated_by], references: [id], onUpdate: NoAction)
+  users_transfers_received_byTousers                       public_users?    @relation("transfers_received_byTousers", fields: [received_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  recommendations                                          recommendations? @relation(fields: [recommendation_id], references: [id], onUpdate: NoAction, map: "transfers_recommendation_fkey")
+  users_transfers_rejected_byTousers                       public_users?    @relation("transfers_rejected_byTousers", fields: [rejected_by], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  facilities_transfers_source_facility_idTofacilities      facilities       @relation("transfers_source_facility_idTofacilities", fields: [source_facility_id], references: [id], onUpdate: NoAction)
+
+  @@index([status], map: "transfers_active_idx", where: raw("(status = ANY (ARRAY['PROPOSED'::transfer_status, 'APPROVED'::transfer_status, 'IN_TRANSIT'::transfer_status]))"))
+  @@index([destination_facility_id, status], map: "transfers_destination_status_idx")
+  @@index([source_facility_id, status], map: "transfers_source_status_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_roles {
+  id                                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                            String         @db.Uuid
+  role_id                            Int            @db.SmallInt
+  organization_id                    String?        @db.Uuid
+  facility_id                        String?        @db.Uuid
+  granted_by                         String?        @db.Uuid
+  granted_at                         DateTime       @default(now()) @db.Timestamptz(6)
+  facilities                         facilities?    @relation(fields: [facility_id, organization_id], references: [id, organization_id], onDelete: Restrict, onUpdate: NoAction, map: "user_roles_facility_in_org")
+  users_user_roles_granted_byTousers public_users?  @relation("user_roles_granted_byTousers", fields: [granted_by], references: [id], onUpdate: NoAction)
+  organizations                      organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  roles                              roles          @relation(fields: [role_id], references: [id], onUpdate: NoAction)
+  users_user_roles_user_idTousers    public_users   @relation("user_roles_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, role_id, organization_id, facility_id], map: "user_roles_unique")
+  @@index([facility_id, role_id], map: "user_roles_facility_role_idx")
+  @@index([user_id], map: "user_roles_user_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model public_users {
+  id                                                          String                @id @db.Uuid
+  organization_id                                             String?               @db.Uuid
+  facility_id                                                 String?               @db.Uuid
+  full_name                                                   String
+  email                                                       String
+  phone                                                       String?
+  status                                                      user_status           @default(INVITED)
+  last_login_at                                               DateTime?             @db.Timestamptz(6)
+  created_at                                                  DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                                  DateTime              @default(now()) @db.Timestamptz(6)
+  alerts_alerts_acknowledged_byTousers                        alerts[]              @relation("alerts_acknowledged_byTousers")
+  alerts_alerts_resolved_byTousers                            alerts[]              @relation("alerts_resolved_byTousers")
+  compatibility_rules                                         compatibility_rules[]
+  components                                                  components[]
+  donations                                                   donations[]
+  donor_activations                                           donor_activations[]
+  donors                                                      donors?
+  planning_parameters                                         planning_parameters[]
+  recommendations                                             recommendations[]
+  request_allocations_request_allocations_allocated_byTousers request_allocations[] @relation("request_allocations_allocated_byTousers")
+  request_allocations_request_allocations_confirmed_byTousers request_allocations[] @relation("request_allocations_confirmed_byTousers")
+  requests_requests_requester_user_idTousers                  requests[]            @relation("requests_requester_user_idTousers")
+  requests_requests_verified_byTousers                        requests[]            @relation("requests_verified_byTousers")
+  transactions                                                transactions[]
+  transfers_transfers_approved_byTousers                      transfers[]           @relation("transfers_approved_byTousers")
+  transfers_transfers_dispatched_byTousers                    transfers[]           @relation("transfers_dispatched_byTousers")
+  transfers_transfers_initiated_byTousers                     transfers[]           @relation("transfers_initiated_byTousers")
+  transfers_transfers_received_byTousers                      transfers[]           @relation("transfers_received_byTousers")
+  transfers_transfers_rejected_byTousers                      transfers[]           @relation("transfers_rejected_byTousers")
+  user_roles_user_roles_granted_byTousers                     user_roles[]          @relation("user_roles_granted_byTousers")
+  user_roles_user_roles_user_idTousers                        user_roles[]          @relation("user_roles_user_idTousers")
+  facilities                                                  facilities?           @relation(fields: [facility_id, organization_id], references: [id, organization_id], onDelete: Restrict, onUpdate: NoAction, map: "users_facility_in_org")
+  users                                                       auth_users            @relation(fields: [id], references: [id], onUpdate: NoAction)
+  organizations                                               organizations?        @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organization_id], map: "users_organization_idx")
+  @@map("users")
+  @@schema("public")
+}
+
+enum alert_status {
+  UNREAD
+  ACKNOWLEDGED
+  RESOLVED
+
+  @@schema("public")
+}
+
+enum alert_type {
+  SHORTAGE
+  EXPIRY
+  EMERGENCY
+  DONOR
+  TRANSFER
+
+  @@schema("public")
+}
+
+enum allocation_status {
+  RESERVED
+  CONFIRMED
+  DISPATCHED
+  ISSUED
+  CANCELLED
+  EXPIRED
+  RETURNED
+
+  @@schema("public")
+}
+
+enum app_role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  HOSPITAL_STAFF
+  DOCTOR
+  EMERGENCY_STAFF
+  BLOOD_BANK_ADMIN
+  BLOOD_BANK_STAFF
+  INVENTORY_MANAGER
+  DONOR
+  PUBLIC_REQUESTER
+
+  @@schema("public")
+}
+
+enum component_category {
+  WHOLE_BLOOD
+  RED_CELLS
+  PLASMA
+  PLATELETS
+  CRYOPRECIPITATE
+
+  @@schema("public")
+}
+
+enum donation_type {
+  WHOLE_BLOOD
+  APHERESIS_PLATELETS
+  APHERESIS_PLASMA
+
+  @@schema("public")
+}
+
+enum donor_activation_status {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+  EXPIRED
+
+  @@schema("public")
+}
+
+enum donor_availability {
+  AVAILABLE
+  TEMPORARILY_UNAVAILABLE
+  UNAVAILABLE
+
+  @@schema("public")
+}
+
+enum donor_response {
+  NO_RESPONSE
+  WILLING
+  DECLINED
+
+  @@schema("public")
+}
+
+enum donor_status {
+  ACTIVE
+  DEFERRED
+  INACTIVE
+
+  @@schema("public")
+}
+
+enum eligibility_status {
+  PENDING
+  ELIGIBLE
+  TEMPORARILY_DEFERRED
+  PERMANENTLY_DEFERRED
+
+  @@schema("public")
+}
+
+enum facility_operating_status {
+  OPERATIONAL
+  TEMPORARILY_CLOSED
+  INACTIVE
+
+  @@schema("public")
+}
+
+enum facility_type {
+  HOSPITAL
+  BLOOD_CENTRE
+  CLINIC
+  NURSING_HOME
+  EMERGENCY_SERVICE
+  OTHER
+
+  @@schema("public")
+}
+
+enum inventory_unit_status {
+  AVAILABLE
+  RESERVED
+  DISPATCHED
+  IN_TRANSIT
+  RECEIVED
+  ISSUED
+  RETURNED
+  WASTED
+  EXPIRED
+  QUARANTINED
+
+  @@schema("public")
+}
+
+enum notification_status {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+
+  @@schema("public")
+}
+
+enum organization_status {
+  PENDING
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum organization_type {
+  HOSPITAL
+  BLOOD_CENTRE
+  HOSPITAL_BLOOD_CENTRE
+  CLINIC
+  NURSING_HOME
+  OTHER_AUTHORIZED_PROVIDER
+
+  @@schema("public")
+}
+
+enum prediction_type {
+  DEMAND
+  SHORTAGE
+  EXPIRY
+
+  @@schema("public")
+}
+
+enum processing_status {
+  PENDING
+  PROCESSED
+  DISCARDED
+
+  @@schema("public")
+}
+
+enum recommendation_source {
+  AI_SERVICE
+  SYSTEM_RULE
+
+  @@schema("public")
+}
+
+enum recommendation_status {
+  PENDING
+  APPROVED
+  MODIFIED
+  REJECTED
+  EXPIRED
+  EXECUTED
+
+  @@schema("public")
+}
+
+enum recommendation_type {
+  REDISTRIBUTION
+  PROCUREMENT
+  EMERGENCY_SOURCE
+  DONOR_ACTIVATION
+
+  @@schema("public")
+}
+
+enum request_status {
+  OPEN
+  ALLOCATED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  CANCELLED
+  REJECTED
+  EXPIRED
+
+  @@schema("public")
+}
+
+enum request_type {
+  EMERGENCY
+  ROUTINE
+  BULK
+
+  @@schema("public")
+}
+
+enum risk_level {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+
+  @@schema("public")
+}
+
+enum role_scope {
+  PLATFORM
+  ORGANIZATION
+  FACILITY
+  SELF
+
+  @@schema("public")
+}
+
+enum rule_validation_status {
+  DEMO_ONLY
+  VALIDATED
+  RETIRED
+
+  @@schema("public")
+}
+
+enum screening_status {
+  PENDING
+  PASSED
+  FAILED
+
+  @@schema("public")
+}
+
+enum storage_location_status {
+  ACTIVE
+  MAINTENANCE
+  OUT_OF_SERVICE
+
+  @@schema("public")
+}
+
+enum storage_location_type {
+  REFRIGERATOR
+  FREEZER
+  PLATELET_INCUBATOR
+  QUARANTINE_AREA
+  OTHER
+
+  @@schema("public")
+}
+
+enum transaction_type {
+  COMPONENT_CREATED
+  INVENTORY_ADDED
+  PROCUREMENT_RECEIVED
+  INVENTORY_QUARANTINED
+  INVENTORY_ACCEPTED
+  INVENTORY_RESERVED
+  INVENTORY_RELEASED
+  INVENTORY_DISPATCHED
+  INVENTORY_ISSUED
+  INVENTORY_RETURNED
+  TRANSFER_DISPATCHED
+  TRANSFER_RECEIVED
+  INVENTORY_WASTED
+  INVENTORY_EXPIRED
+
+  @@schema("public")
+}
+
+enum transfer_status {
+  PROPOSED
+  APPROVED
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+  CANCELLED
+
+  @@schema("public")
+}
+
+enum urgency_level {
+  CRITICAL
+  HIGH
+  NORMAL
+
+  @@schema("public")
+}
+
+enum user_status {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+
+  @@schema("public")
+}
+
+enum verification_method {
+  STAFF_AT_CREATION
+  STAFF_REVIEW
+
+  @@schema("public")
+}
+
+enum verification_status {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+
+  @@schema("public")
+}
