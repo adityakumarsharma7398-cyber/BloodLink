@@ -84,7 +84,11 @@ export function createDatabase(config: AppConfig['database'], logger: Logger): D
       );
     },
 
-    async probe(timeoutMs = 3_000) {
+    // Default kept above the driver's own connectionTimeoutMillis (10_000) above, so a cold/slow
+    // first connection (e.g. cross-cloud to a pooler right after deploy) has time to actually
+    // finish before this races it — a probe that gives up sooner than the driver itself would is
+    // reporting a false TIMEOUT, not a real one.
+    async probe(timeoutMs = 12_000) {
       if (!url) return { ok: false, reason: 'NOT_CONFIGURED' };
       const startedAt = performance.now();
       let timer: NodeJS.Timeout | undefined;

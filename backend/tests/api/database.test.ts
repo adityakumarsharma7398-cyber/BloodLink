@@ -73,6 +73,14 @@ describe('probe', () => {
     expect(await unconfigured.probe()).toEqual({ ok: false, reason: 'NOT_CONFIGURED' });
     await unconfigured.disconnect();
   });
+
+  it('reports TIMEOUT (not UNREACHABLE) when the query is still pending when the deadline passes', async () => {
+    // A real, reachable connection: the query would succeed given any realistic amount of time, but
+    // an unreasonably tight deadline (1ms) forces the probe's own race to win, exactly the failure
+    // mode a cold/slow connection produces if the probe's timeout is too short (the incident this
+    // guards against).
+    expect(await db.probe(1)).toEqual({ ok: false, reason: 'TIMEOUT' });
+  });
 });
 
 describe('private function registry matches the live database catalog', () => {
